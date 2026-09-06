@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { isMobile } from "../lib/platform";
 
 export interface GitStatus {
   isRepo: boolean;
@@ -19,6 +20,7 @@ export interface GitResult {
 }
 
 export async function isGitAvailable(): Promise<boolean> {
+  if (isMobile) return false;
   return invoke("git_is_available");
 }
 

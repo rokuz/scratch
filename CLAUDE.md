@@ -11,6 +11,8 @@ npm run dev          # Start Vite dev server only
 npm run build        # Build frontend (tsc + vite)
 npm run tauri dev    # Run full app in development mode
 npm run tauri build  # Build production app
+npm run tauri android dev    # Run on an Android device/emulator (needs ANDROID_HOME, NDK_HOME, JAVA_HOME with JDK 17-21)
+npm run tauri android build  # Build Android APK/AAB
 ```
 
 ## CI
@@ -22,7 +24,8 @@ Runs on every push to `main` and on PRs. Validates frontend build (`tsc` + Vite)
 - All backend operations go through Tauri commands in `src-tauri/src/lib.rs`. Frontend calls them via `invoke()` from `@tauri-apps/api/core`.
 - `NotesContext` uses a dual context pattern (data/actions separated) for performance.
 - Settings live in two places: app config at `{APP_DATA}/config.json`, per-folder settings at `{NOTES_FOLDER}/.scratch/settings.json`.
-- Tauri v2 permissions go in `src-tauri/capabilities/default.json`.
+- Tauri v2 permissions go in `src-tauri/capabilities/default.json`; permissions for desktop-only plugins (updater) go in `capabilities/desktop.json`.
+- Android: desktop-only backend features (git, AI CLIs, terminal CLI, folder dialog, preview windows, updater, single-instance) are gated with `#[cfg(desktop)]`; the frontend hides them via `isMobile` from `src/lib/platform.ts`. On mobile the notes folder defaults to the app's Documents dir. The Android Studio project is committed at `src-tauri/gen/android`; `MainActivity.kt` handles system-bar/keyboard insets and back navigation.
 
 ## Coding Conventions
 

@@ -37,7 +37,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { join } from "@tauri-apps/api/path";
 import { toast } from "sonner";
-import { mod, alt, shift, isMac, isWindows } from "../../lib/platform";
+import { mod, alt, shift, isMac, isWindows, isMobile } from "../../lib/platform";
 
 // Prepend https:// if no protocol is present
 function normalizeUrl(url: string): string {
@@ -2181,11 +2181,21 @@ export function Editor({
     return (
       <div className="flex-1 flex flex-col bg-bg">
         {/* Drag region */}
-        {!isWindows && (
-          <div
-            className="h-10 shrink-0 flex items-end px-4 pb-1"
-            data-tauri-drag-region
-          ></div>
+        {isMobile ? (
+          <div className="h-11 shrink-0 flex items-center px-3">
+            {onToggleSidebar && !sidebarVisible && (
+              <IconButton onClick={onToggleSidebar} title="Show sidebar">
+                <PanelLeftIcon className="w-4.5 h-4.5 stroke-[1.5]" />
+              </IconButton>
+            )}
+          </div>
+        ) : (
+          !isWindows && (
+            <div
+              className="h-10 shrink-0 flex items-end px-4 pb-1"
+              data-tauri-drag-region
+            ></div>
+          )
         )}
         <div className="flex-1 flex items-center justify-center pb-8">
           <div className="text-center text-text-muted select-none">
@@ -2237,7 +2247,7 @@ export function Editor({
       <div
         className={cn(
           "h-11 shrink-0 flex items-center justify-between px-3",
-          !isSidebarActive && !isWindows && "pl-22",
+          !isSidebarActive && !isWindows && !isMobile && "pl-22",
         )}
         data-tauri-drag-region
       >

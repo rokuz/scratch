@@ -10,12 +10,14 @@ use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::*;
 use tantivy::{doc, Index, IndexReader, IndexWriter, ReloadPolicy};
-use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl};
-use tauri::webview::WebviewWindowBuilder;
+use tauri::{AppHandle, Emitter, Manager, State};
+#[cfg(desktop)]
+use tauri::{webview::WebviewWindowBuilder, WebviewUrl};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
+#[cfg(desktop)]
 mod git;
 
 // Note metadata for list display
@@ -27,6 +29,7 @@ pub struct NoteMetadata {
     pub modified: i64,
 }
 
+#[cfg(desktop)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliStatus {
     pub supported: bool,
@@ -148,6 +151,7 @@ pub struct SearchResult {
 }
 
 // AI execution result
+#[cfg(desktop)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiExecutionResult {
@@ -730,6 +734,21 @@ fn get_search_index_path(app: &AppHandle) -> Result<PathBuf> {
     let app_data = app.path().app_data_dir()?;
     std::fs::create_dir_all(&app_data)?;
     Ok(app_data.join("search_index"))
+}
+
+// Mobile has no folder picker and no access to arbitrary folders, so notes live in
+// the app's own storage: the app-specific Documents dir (visible to file managers),
+// falling back to internal app data.
+#[cfg(mobile)]
+fn default_mobile_notes_folder(app: &AppHandle) -> Option<String> {
+    let base = app
+        .path()
+        .document_dir()
+        .or_else(|_| app.path().app_data_dir())
+        .ok()?;
+    let folder = base.join("Scratch");
+    std::fs::create_dir_all(&folder).ok()?;
+    Some(folder.to_string_lossy().into_owned())
 }
 
 // Load app config from disk (notes folder path)
@@ -2011,6 +2030,7 @@ async fn import_file_to_folder(
 
     // Tell the main window to select the imported note and focus it
     let _ = app.emit_to("main", "select-note", &metadata.id);
+    #[cfg(desktop)]
     if let Some(main_window) = app.get_webview_window("main") {
         let _ = main_window.set_focus();
     }
@@ -2437,6 +2457,7 @@ fn get_default_ignored_patterns() -> Vec<String> {
 
 // UI helper commands - wrap Tauri plugins for consistent invoke-based API
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn open_folder_dialog(
     app: AppHandle,
@@ -2460,6 +2481,7 @@ async fn open_folder_dialog(
     Ok(result.map(|p| p.to_string()))
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn open_in_file_manager(path: String) -> Result<(), String> {
     let path_buf = PathBuf::from(&path);
@@ -2501,7 +2523,9 @@ async fn open_in_file_manager(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn open_url_safe(url: String) -> Result<(), String> {
+async fn open_url_safe(app: AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+
     // Validate URL scheme - only allow http, https, mailto
     let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid URL: {}", e))?;
 
@@ -2516,11 +2540,14 @@ async fn open_url_safe(url: String) -> Result<(), String> {
     }
 
     // Use system opener
-    open::that(&url).map_err(|e| format!("Failed to open URL: {}", e))
+    app.opener()
+        .open_url(&url, None::<&str>)
+        .map_err(|e| format!("Failed to open URL: {}", e))
 }
 
 // Git commands - run blocking git operations off the main thread
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_is_available() -> bool {
     tauri::async_runtime::spawn_blocking(git::is_available)
@@ -2528,6 +2555,7 @@ async fn git_is_available() -> bool {
         .unwrap_or(false)
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_get_status(state: State<'_, AppState>) -> Result<git::GitStatus, String> {
     let folder = {
@@ -2547,6 +2575,7 @@ async fn git_get_status(state: State<'_, AppState>) -> Result<git::GitStatus, St
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_init_repo(state: State<'_, AppState>) -> Result<(), String> {
     let folder = {
@@ -2561,6 +2590,7 @@ async fn git_init_repo(state: State<'_, AppState>) -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_commit(message: String, state: State<'_, AppState>) -> Result<git::GitResult, String> {
     let folder = {
@@ -2584,6 +2614,7 @@ async fn git_commit(message: String, state: State<'_, AppState>) -> Result<git::
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_push(state: State<'_, AppState>) -> Result<git::GitResult, String> {
     let folder = {
@@ -2607,6 +2638,7 @@ async fn git_push(state: State<'_, AppState>) -> Result<git::GitResult, String> 
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_fetch(state: State<'_, AppState>) -> Result<git::GitResult, String> {
     let folder = {
@@ -2630,6 +2662,7 @@ async fn git_fetch(state: State<'_, AppState>) -> Result<git::GitResult, String>
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_pull(state: State<'_, AppState>) -> Result<git::GitResult, String> {
     let folder = {
@@ -2653,6 +2686,7 @@ async fn git_pull(state: State<'_, AppState>) -> Result<git::GitResult, String> 
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_add_remote(url: String, state: State<'_, AppState>) -> Result<git::GitResult, String> {
     let folder = {
@@ -2676,6 +2710,7 @@ async fn git_add_remote(url: String, state: State<'_, AppState>) -> Result<git::
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_set_remote_url(url: String, state: State<'_, AppState>) -> Result<git::GitResult, String> {
     let folder = {
@@ -2699,6 +2734,7 @@ async fn git_set_remote_url(url: String, state: State<'_, AppState>) -> Result<g
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_remove_remote(state: State<'_, AppState>) -> Result<git::GitResult, String> {
     let folder = {
@@ -2722,6 +2758,7 @@ async fn git_remove_remote(state: State<'_, AppState>) -> Result<git::GitResult,
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn git_push_with_upstream(state: State<'_, AppState>) -> Result<git::GitResult, String> {
     let folder = {
@@ -2767,6 +2804,7 @@ async fn git_push_with_upstream(state: State<'_, AppState>) -> Result<git::GitRe
 }
 
 // Check if Claude CLI is installed
+#[cfg(desktop)]
 fn get_expanded_path() -> String {
     let system_path = std::env::var("PATH").unwrap_or_default();
     let home = std::env::var("HOME").unwrap_or_else(|_| String::new());
@@ -2812,6 +2850,7 @@ fn get_expanded_path() -> String {
     expanded.join(":")
 }
 
+#[cfg(desktop)]
 /// Create a `Command` that hides the console window on Windows.
 fn no_window_cmd(program: &str) -> std::process::Command {
     let cmd = std::process::Command::new(program);
@@ -2828,6 +2867,7 @@ fn no_window_cmd(program: &str) -> std::process::Command {
     }
 }
 
+#[cfg(desktop)]
 fn check_cli_exists(command_name: &str, path: &str) -> Result<bool, String> {
     let which_cmd = if cfg!(target_os = "windows") {
         "where"
@@ -2849,6 +2889,7 @@ fn check_cli_exists(command_name: &str, path: &str) -> Result<bool, String> {
 #[cfg(target_os = "macos")]
 const SCRATCH_CLI_MARKER: &str = "# SCRATCH_CLI_WRAPPER";
 
+#[cfg(desktop)]
 /// Returns the path where the CLI script should be installed (macOS only).
 /// Checks PATH for Homebrew bin first, then falls back to architecture detection.
 /// Apple Silicon: /opt/homebrew/bin/scratch
@@ -2868,6 +2909,7 @@ fn cli_target_path() -> PathBuf {
     PathBuf::from("/usr/local/bin/scratch")
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 fn get_cli_status() -> Result<CliStatus, String> {
     #[cfg(not(target_os = "macos"))]
@@ -2900,6 +2942,7 @@ fn get_cli_status() -> Result<CliStatus, String> {
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 fn install_cli() -> Result<String, String> {
     #[cfg(not(target_os = "macos"))]
@@ -2958,6 +3001,7 @@ fn install_cli() -> Result<String, String> {
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 fn uninstall_cli() -> Result<(), String> {
     #[cfg(not(target_os = "macos"))]
@@ -2981,6 +3025,7 @@ fn uninstall_cli() -> Result<(), String> {
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn ai_check_claude_cli() -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(|| {
@@ -2991,6 +3036,7 @@ async fn ai_check_claude_cli() -> Result<bool, String> {
     .map_err(|e| format!("Failed to check Claude CLI: {}", e))?
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn ai_check_codex_cli() -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(|| {
@@ -3001,6 +3047,7 @@ async fn ai_check_codex_cli() -> Result<bool, String> {
     .map_err(|e| format!("Failed to check Codex CLI: {}", e))?
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn ai_check_opencode_cli() -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(|| {
@@ -3011,6 +3058,7 @@ async fn ai_check_opencode_cli() -> Result<bool, String> {
     .map_err(|e| format!("Failed to check OpenCode CLI: {}", e))?
 }
 
+#[cfg(desktop)]
 /// Shared AI CLI execution: spawns `command` with `args`, writes `stdin_input` to stdin,
 /// and returns the result with a 5-minute timeout.
 async fn execute_ai_cli(
@@ -3222,6 +3270,7 @@ async fn execute_ai_cli(
     Ok(result)
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn ai_execute_claude(
     file_path: String,
@@ -3263,6 +3312,7 @@ async fn ai_execute_claude(
     .await
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn ai_execute_codex(file_path: String, prompt: String) -> Result<AiExecutionResult, String> {
     let stdin_input = format!(
@@ -3290,6 +3340,7 @@ async fn ai_execute_codex(file_path: String, prompt: String) -> Result<AiExecuti
     .await
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn ai_execute_opencode(
     file_path: String,
@@ -3346,6 +3397,7 @@ async fn ai_execute_opencode(
     .await
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn ai_check_ollama_cli() -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(|| {
@@ -3356,6 +3408,7 @@ async fn ai_check_ollama_cli() -> Result<bool, String> {
     .map_err(|e| format!("Failed to check Ollama CLI: {}", e))?
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 async fn ai_execute_ollama(
     file_path: String,
@@ -3497,6 +3550,7 @@ async fn ai_execute_ollama(
     }
 }
 
+#[cfg(desktop)]
 /// Check if a markdown file is inside the configured notes folder.
 /// If so, emit a "select-note" event to the main window and focus it, returning true.
 /// Returns false on any failure so callers can fall back to create_preview_window.
@@ -3547,6 +3601,7 @@ fn try_select_in_notes_folder(app: &AppHandle, path: &Path) -> bool {
     true
 }
 
+#[cfg(desktop)]
 /// Check if a file extension is a supported markdown extension.
 fn is_markdown_extension(path: &Path) -> bool {
     path.extension()
@@ -3559,6 +3614,7 @@ fn is_markdown_extension(path: &Path) -> bool {
 }
 
 // Preview mode: create a lightweight window for editing a single file
+#[cfg(desktop)]
 fn create_preview_window(app: &AppHandle, file_path: &str) -> Result<(), String> {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
@@ -3610,6 +3666,7 @@ fn create_preview_window(app: &AppHandle, file_path: &str) -> Result<(), String>
     Ok(())
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 fn open_file_preview(app: AppHandle, path: String) -> Result<(), String> {
     let file_path = PathBuf::from(&path);
@@ -3625,6 +3682,7 @@ fn open_file_preview(app: AppHandle, path: String) -> Result<(), String> {
 
 // Handle CLI arguments: open .md files in preview mode.
 // Returns true if a standalone preview window was created (file outside notes folder).
+#[cfg(desktop)]
 fn handle_cli_args(app: &AppHandle, args: &[String], cwd: &str) -> bool {
     let mut opened_file = false;
     let mut opened_preview = false;
@@ -3711,19 +3769,44 @@ pub fn run() {
     #[cfg(target_os = "macos")]
     enable_webview_spellcheck_defaults();
 
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    let builder = builder
         // Single-instance: forward CLI args from subsequent launches to the running instance
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             handle_cli_args(app, &args, &cwd);
         }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .on_window_event(|window, event| {
+            // Handle drag-and-drop of .md files onto any window
+            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                let app = window.app_handle();
+                for path in paths {
+                    if is_markdown_extension(path)
+                        && path.is_file()
+                        && !try_select_in_notes_folder(app, path)
+                    {
+                        let _ = create_preview_window(app, &path.to_string_lossy());
+                    }
+                }
+            }
+        });
+
+    let app = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Load app config on startup (contains notes folder path)
             let mut app_config = load_app_config(app.handle());
+
+            #[cfg(mobile)]
+            if app_config.notes_folder.is_none() {
+                app_config.notes_folder = default_mobile_notes_folder(app.handle());
+                let _ = save_app_config(app.handle(), &app_config);
+            }
 
             // Normalize legacy/invalid saved paths (e.g. file:// URI from older builds)
             if let Some(saved_path) = app_config.notes_folder.clone() {
@@ -3788,54 +3871,44 @@ pub fn run() {
             // notes folder is already configured, the main window is closed so users only
             // see the preview. When no notes folder is configured yet, the main window is
             // always shown so new users can complete onboarding via the FolderPicker.
-            let args: Vec<String> = std::env::args().collect();
-            let opened_preview = if args.len() > 1 {
-                let cwd = std::env::current_dir()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned();
-                handle_cli_args(app.handle(), &args, &cwd)
-            } else {
-                false
-            };
-
-            if let Some(main_window) = app.get_webview_window("main") {
-                let has_notes_folder = app
-                    .state::<AppState>()
-                    .app_config
-                    .read()
-                    .expect("app_config read lock")
-                    .notes_folder
-                    .is_some();
-
-                if opened_preview && has_notes_folder {
-                    // Existing user: notes folder is configured and a standalone preview
-                    // was opened. Close the hidden main window so only the preview is visible.
-                    let _ = main_window.hide();
+            // Mobile has a single always-visible window and no CLI args, so this is desktop-only.
+            #[cfg(desktop)]
+            {
+                let args: Vec<String> = std::env::args().collect();
+                let opened_preview = if args.len() > 1 {
+                    let cwd = std::env::current_dir()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .into_owned();
+                    handle_cli_args(app.handle(), &args, &cwd)
                 } else {
-                    // Show the main window when:
-                    // - No standalone preview was opened (normal launch), OR
-                    // - No notes folder is configured yet (new user needs FolderPicker
-                    //   for onboarding, even if a preview is also showing).
-                    let _ = main_window.show();
+                    false
+                };
+
+                if let Some(main_window) = app.get_webview_window("main") {
+                    let has_notes_folder = app
+                        .state::<AppState>()
+                        .app_config
+                        .read()
+                        .expect("app_config read lock")
+                        .notes_folder
+                        .is_some();
+
+                    if opened_preview && has_notes_folder {
+                        // Existing user: notes folder is configured and a standalone preview
+                        // was opened. Close the hidden main window so only the preview is visible.
+                        let _ = main_window.hide();
+                    } else {
+                        // Show the main window when:
+                        // - No standalone preview was opened (normal launch), OR
+                        // - No notes folder is configured yet (new user needs FolderPicker
+                        //   for onboarding, even if a preview is also showing).
+                        let _ = main_window.show();
+                    }
                 }
             }
 
             Ok(())
-        })
-        .on_window_event(|window, event| {
-            // Handle drag-and-drop of .md files onto any window
-            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
-                let app = window.app_handle();
-                for path in paths {
-                    if is_markdown_extension(path)
-                        && path.is_file()
-                        && !try_select_in_notes_folder(app, path)
-                    {
-                        let _ = create_preview_window(app, &path.to_string_lossy());
-                    }
-                }
-            }
         })
         .invoke_handler(tauri::generate_handler![
             get_notes_folder,
@@ -3863,34 +3936,59 @@ pub fn run() {
             copy_to_clipboard,
             copy_image_to_assets,
             save_clipboard_image,
+            #[cfg(desktop)]
             open_folder_dialog,
+            #[cfg(desktop)]
             open_in_file_manager,
             open_url_safe,
+            #[cfg(desktop)]
             git_is_available,
+            #[cfg(desktop)]
             git_get_status,
+            #[cfg(desktop)]
             git_init_repo,
+            #[cfg(desktop)]
             git_commit,
+            #[cfg(desktop)]
             git_push,
+            #[cfg(desktop)]
             git_fetch,
+            #[cfg(desktop)]
             git_pull,
+            #[cfg(desktop)]
             git_add_remote,
+            #[cfg(desktop)]
             git_set_remote_url,
+            #[cfg(desktop)]
             git_remove_remote,
+            #[cfg(desktop)]
             git_push_with_upstream,
+            #[cfg(desktop)]
             ai_check_claude_cli,
+            #[cfg(desktop)]
             ai_check_codex_cli,
+            #[cfg(desktop)]
             ai_check_opencode_cli,
+            #[cfg(desktop)]
             ai_check_ollama_cli,
+            #[cfg(desktop)]
             ai_execute_claude,
+            #[cfg(desktop)]
             ai_execute_codex,
+            #[cfg(desktop)]
             ai_execute_opencode,
+            #[cfg(desktop)]
             ai_execute_ollama,
             read_file_direct,
             save_file_direct,
             import_file_to_folder,
+            #[cfg(desktop)]
             open_file_preview,
+            #[cfg(desktop)]
             install_cli,
+            #[cfg(desktop)]
             uninstall_cli,
+            #[cfg(desktop)]
             get_cli_status,
             set_title_bar_theme,
         ])

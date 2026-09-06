@@ -13,7 +13,7 @@ import { AppearanceSettingsSection } from "./EditorSettingsSection";
 import { ShortcutsSettingsSection } from "./ShortcutsSettingsSection";
 import { AboutSettingsSection } from "./AboutSettingsSection";
 import { ToolsSettingsSection } from "./ToolsSettingsSection";
-import { mod, isMac, isWindows } from "../../lib/platform";
+import { mod, isMac, isWindows, isMobile } from "../../lib/platform";
 
 interface SettingsPageProps {
   onBack: () => void;
@@ -21,7 +21,7 @@ interface SettingsPageProps {
 
 type SettingsTab = "general" | "tools" | "editor" | "shortcuts" | "about";
 
-const tabs: {
+const allTabs: {
   id: SettingsTab;
   label: string;
   icon: typeof FolderIcon;
@@ -33,6 +33,10 @@ const tabs: {
   { id: "shortcuts", label: "Shortcuts", icon: KeyboardIcon, shortcut: "4" },
   { id: "about", label: "About", icon: InfoIcon, shortcut: "5" },
 ];
+
+const tabs = isMobile
+  ? allTabs.filter((tab) => tab.id !== "tools" && tab.id !== "shortcuts")
+  : allTabs;
 
 export function SettingsPage({ onBack }: SettingsPageProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
@@ -73,11 +77,11 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   }, []);
 
   return (
-    <div className="h-full flex bg-bg w-full">
+    <div className="h-full flex max-sm:flex-col bg-bg w-full">
       {/* Sidebar - matches main Notes sidebar */}
-      <div className="w-64 h-full bg-bg-secondary border-r border-border flex flex-col select-none">
+      <div className="w-64 h-full max-sm:w-full max-sm:h-auto bg-bg-secondary border-r max-sm:border-r-0 max-sm:border-b border-border flex flex-col select-none">
         {/* Drag region */}
-        {!isWindows && <div className="h-11 shrink-0" data-tauri-drag-region></div>}
+        {!isWindows && !isMobile && <div className="h-11 shrink-0" data-tauri-drag-region></div>}
 
         {/* Header with back button and Settings title */}
         <div className={`flex items-center justify-between px-3 pb-2 border-b border-border shrink-0${isWindows ? " pt-2" : ""}`}>
@@ -93,7 +97,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         </div>
 
         {/* Navigation tabs */}
-        <nav className="flex-1 p-2 flex flex-col gap-1">
+        <nav className="flex-1 p-2 flex flex-col max-sm:flex-row max-sm:flex-wrap gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -109,7 +113,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                   <Icon className="w-4.5 h-4.5 stroke-[1.5]" />
                   {tab.label}
                 </div>
-                <div className="text-xs text-text-muted">
+                <div className="text-xs text-text-muted max-sm:hidden">
                   <span className="mr-0.5">{mod}</span>
                   {tab.shortcut}
                 </div>
@@ -122,7 +126,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col bg-bg overflow-hidden">
         {/* Drag region */}
-        {!isWindows && <div className="h-11 shrink-0" data-tauri-drag-region></div>}
+        {!isWindows && !isMobile && <div className="h-11 shrink-0" data-tauri-drag-region></div>}
 
         {/* Content - centered with max width */}
         <div

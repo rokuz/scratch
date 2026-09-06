@@ -8,6 +8,9 @@ import { TooltipProvider, Toaster } from "./components/ui";
 import { Sidebar } from "./components/layout/Sidebar";
 import { SidebarResizeHandle } from "./components/layout/SidebarResizeHandle";
 import { SIDEBAR_DEFAULT_PX } from "./lib/sidebar";
+
+/** Below Tailwind's `sm` breakpoint the sidebar and editor are shown one at a time. */
+const isNarrowViewport = () => window.matchMedia("(max-width: 639px)").matches;
 import { Editor } from "./components/editor/Editor";
 import type { Editor as TiptapEditor } from "@tiptap/react";
 import { FolderPicker } from "./components/layout/FolderPicker";
@@ -31,7 +34,7 @@ import {
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import * as aiService from "./services/ai";
 import type { AiProvider } from "./services/ai";
-import { isMac, isWindows } from "./lib/platform";
+import { isMac, isWindows, isMobile } from "./lib/platform";
 
 // Detect preview mode from URL search params
 function getWindowMode(): {
@@ -97,9 +100,40 @@ function AppContent() {
     };
   }, [syncNotesFolder, reloadSettings]);
 
-  const toggleSidebar = useCallback(() => {
-    setSidebarVisible((prev) => !prev);
+  // Phone-width layout: the sidebar and editor don't fit side by side, so they are shown
+  // one at a time. Opening the editor pushes a history entry so the Android back button
+  // returns to the list; showing the list pops it again.
+  const showEditorPane = useCallback(() => {
+    setSidebarVisible(false);
+    if (!history.state?.editor) history.pushState({ editor: true }, "");
   }, []);
+
+  const toggleSidebar = useCallback(() => {
+    if (!isNarrowViewport()) {
+      setSidebarVisible((prev) => !prev);
+    } else if (sidebarVisible) {
+      showEditorPane();
+    } else if (history.state?.editor) {
+      history.back();
+    } else {
+      setSidebarVisible(true);
+    }
+  }, [sidebarVisible, showEditorPane]);
+
+  useEffect(() => {
+    const onSelect = () => {
+      if (isNarrowViewport()) showEditorPane();
+    };
+    const onPop = () => {
+      if (isNarrowViewport()) setSidebarVisible(true);
+    };
+    window.addEventListener("note-selected", onSelect);
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("note-selected", onSelect);
+      window.removeEventListener("popstate", onPop);
+    };
+  }, [showEditorPane]);
 
   const toggleFocusMode = useCallback(() => {
     setFocusMode((prev) => {
@@ -476,9 +510,12 @@ function AppContent() {
             <div
               data-sidebar
               style={{ width: (!sidebarVisible || focusMode) ? 0 : `var(--sidebar-width, ${SIDEBAR_DEFAULT_PX}px)` }}
-              className={`relative transition-all duration-500 ease-out overflow-hidden ${!sidebarVisible || focusMode ? "opacity-0 -translate-x-4 pointer-events-none" : "opacity-100 translate-x-0"}`}
+              className={`relative transition-all duration-500 ease-out overflow-hidden ${!sidebarVisible || focusMode ? "opacity-0 -translate-x-4 pointer-events-none" : "opacity-100 translate-x-0 max-sm:w-full! max-sm:shrink-0"}`}
             >
-              <Sidebar onOpenSettings={toggleSettings} />
+              <Sidebar
+                onOpenSettings={toggleSettings}
+                onToggleSidebar={toggleSidebar}
+              />
               {sidebarVisible && !focusMode && <SidebarResizeHandle />}
             </div>
             <Editor
@@ -656,9 +693,9 @@ function App() {
     document.documentElement.classList.add(`platform-${os}`);
   }, []);
 
-  // Check for app updates on startup (folder mode only)
+  // Check for app updates on startup (folder mode only; mobile updates via the store)
   useEffect(() => {
-    if (isPreview) return;
+    if (isPreview || isMobile) return;
     const timer = setTimeout(() => showUpdateToast(), 3000);
     return () => clearTimeout(timer);
   }, [isPreview]);

@@ -51,7 +51,7 @@ import {
   FolderPlusIcon,
   KeyboardIcon,
 } from "../icons";
-import { mod, shift } from "../../lib/platform";
+import { mod, shift, isMobile } from "../../lib/platform";
 import type { AiProvider } from "../../services/ai";
 
 interface Command {
@@ -433,7 +433,7 @@ export function CommandPalette({
     );
 
     // Open notes folder
-    if (notesFolder) {
+    if (notesFolder && !isMobile) {
       baseCommands.push({
         id: "open-folder",
         label: "Open Notes Folder",

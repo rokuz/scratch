@@ -22,16 +22,18 @@ import {
   AddNoteIcon,
   FolderPlusIcon,
   NoteIcon,
+  PanelLeftIcon,
 } from "../icons";
-import { mod, shift, isMac, isWindows } from "../../lib/platform";
+import { mod, shift, isMac, isWindows, isMobile } from "../../lib/platform";
 import * as notesService from "../../services/notes";
 import { FolderNameDialog } from "../notes/FolderNameDialog";
 
 interface SidebarProps {
   onOpenSettings?: () => void;
+  onToggleSidebar?: () => void;
 }
 
-export function Sidebar({ onOpenSettings }: SidebarProps) {
+export function Sidebar({ onOpenSettings, onToggleSidebar }: SidebarProps) {
   const {
     createNote,
     createFolder,
@@ -312,7 +314,9 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     >
     <div className="relative w-full h-full bg-bg-secondary border-r border-border flex flex-col select-none">
       {/* Drag region */}
-      {!isWindows && <div className="h-11 shrink-0" data-tauri-drag-region></div>}
+      {!isWindows && !isMobile && (
+        <div className="h-11 shrink-0" data-tauri-drag-region></div>
+      )}
       <div className={`flex items-center justify-between pl-4 pr-3 pb-2 border-b border-border shrink-0${isWindows ? " pt-2" : ""}`}>
         <div className="flex items-center gap-1">
           <div className="font-medium text-base">Notes</div>
@@ -321,6 +325,11 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
           </div>
         </div>
         <div className="flex items-center gap-px">
+          {isMobile && onToggleSidebar && (
+            <IconButton onClick={onToggleSidebar} title="Hide sidebar">
+              <PanelLeftIcon className="w-4.5 h-4.5 stroke-[1.5]" />
+            </IconButton>
+          )}
           <IconButton
             onClick={toggleSearch}
             title={`Search Notes (${mod}${isMac ? "" : "+"}${shift}${isMac ? "" : "+"}F)`}

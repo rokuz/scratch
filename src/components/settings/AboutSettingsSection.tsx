@@ -3,6 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { showUpdateToast } from "../../App";
+import { isMobile } from "../../lib/platform";
 import { Button } from "../ui";
 import { RefreshCwIcon, SpinnerIcon, GithubIcon } from "../icons";
 
@@ -44,25 +45,27 @@ export function AboutSettingsSection() {
         <p className="text-sm text-text-muted mb-4">
           You are currently using Scratch v{appVersion || "..."}
         </p>
-        <Button
-          onClick={handleCheckForUpdates}
-          disabled={checkingUpdate}
-          variant="outline"
-          size="md"
-          className="gap-1.25"
-        >
-          {checkingUpdate ? (
-            <>
-              <SpinnerIcon className="w-4.5 h-4.5 stroke-[1.5] animate-spin" />
-              Checking...
-            </>
-          ) : (
-            <>
-              <RefreshCwIcon className="w-4.5 h-4.5 stroke-[1.5]" />
-              Check for Updates
-            </>
-          )}
-        </Button>
+        {!isMobile && (
+          <Button
+            onClick={handleCheckForUpdates}
+            disabled={checkingUpdate}
+            variant="outline"
+            size="md"
+            className="gap-1.25"
+          >
+            {checkingUpdate ? (
+              <>
+                <SpinnerIcon className="w-4.5 h-4.5 stroke-[1.5] animate-spin" />
+                Checking...
+              </>
+            ) : (
+              <>
+                <RefreshCwIcon className="w-4.5 h-4.5 stroke-[1.5]" />
+                Check for Updates
+              </>
+            )}
+          </Button>
+        )}
       </section>
 
       {/* Divider */}

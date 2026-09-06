@@ -2,9 +2,9 @@
 
 <img src="docs/app-icon.png" alt="Scratch" width="128" height="128" style="border-radius: 22px; margin-bottom: 8px;">
 
-A minimalist, offline-first markdown note-taking app for macOS, Windows, and Linux.
+A minimalist, offline-first markdown note-taking app for macOS, Windows, Linux, and Android.
 
-![macOS](https://img.shields.io/badge/platform-macOS-lightgrey) ![Windows](https://img.shields.io/badge/platform-Windows-blue) ![Linux](https://img.shields.io/badge/platform-Linux-orange)
+![macOS](https://img.shields.io/badge/platform-macOS-lightgrey) ![Windows](https://img.shields.io/badge/platform-Windows-blue) ![Linux](https://img.shields.io/badge/platform-Linux-orange) ![Android](https://img.shields.io/badge/platform-Android-green)
 
 [Website](https://www.ericli.io/scratch) · [Releases](https://github.com/erictli/scratch/releases)
 
@@ -70,6 +70,19 @@ cd scratch
 npm install
 npm run tauri dev      # Development
 npm run tauri build    # Production build
+```
+
+### Android
+
+Notes live in the app's own storage (`Android/data/com.scratch.app/files/Documents/Scratch`). Git sync, the AI integrations, the terminal CLI, and the folder picker are desktop-only.
+
+**Prerequisites:** Android Studio with the SDK and NDK, a JDK 17–21 (Gradle 8 rejects newer JDKs), and the Rust Android targets:
+
+```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+export ANDROID_HOME=~/Android/Sdk NDK_HOME=$ANDROID_HOME/ndk/<version> JAVA_HOME=<jdk path>
+npm run tauri android dev            # Run on a connected device or emulator
+npm run tauri android build --apk    # Build an APK (add --aab for Play Store)
 ```
 
 ## Keyboard Shortcuts

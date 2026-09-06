@@ -56,6 +56,13 @@ interface NotesActionsContextValue {
 const NotesDataContext = createContext<NotesDataContextValue | null>(null);
 const NotesActionsContext = createContext<NotesActionsContextValue | null>(null);
 
+
+/** Announces a user-initiated note open (including re-opening the current note) so the
+ *  phone layout can switch from the list to the editor. */
+function announceNoteOpened(id: string) {
+  window.dispatchEvent(new CustomEvent("note-selected", { detail: id }));
+}
+
 export function NotesProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<NoteMetadata[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -117,6 +124,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       // Set selected ID immediately for responsive UI
       setSelectedNoteId(id);
       setHasExternalChanges(false);
+      announceNoteOpened(id);
       // Expand parent folders so the note is visible in the tree
       const lastSlash = id.lastIndexOf("/");
       if (lastSlash > 0) {
@@ -165,6 +173,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       await refreshNotes();
       setCurrentNote(note);
       setSelectedNoteId(note.id);
+      announceNoteOpened(note.id);
       // Clear search when creating a new note
       setSearchQuery("");
       setSearchResults([]);
@@ -293,6 +302,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
         await refreshNotes();
         setCurrentNote(newNote);
         setSelectedNoteId(newNote.id);
+        announceNoteOpened(newNote.id);
         setTimeout(() => {
           recentlySavedRef.current.delete(newNote.id);
         }, 1000);
@@ -353,6 +363,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
         await refreshNotes();
         setCurrentNote(note);
         setSelectedNoteId(note.id);
+        announceNoteOpened(note.id);
         setSearchQuery("");
         setSearchResults([]);
         setTimeout(() => {
