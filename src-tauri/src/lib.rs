@@ -736,9 +736,6 @@ fn get_search_index_path(app: &AppHandle) -> Result<PathBuf> {
     Ok(app_data.join("search_index"))
 }
 
-// Mobile has no folder picker and no access to arbitrary folders, so notes live in
-// the app's own storage: the app-specific Documents dir (visible to file managers),
-// falling back to internal app data.
 #[cfg(mobile)]
 fn default_mobile_notes_folder(app: &AppHandle) -> Option<String> {
     let base = app
@@ -3871,7 +3868,6 @@ pub fn run() {
             // notes folder is already configured, the main window is closed so users only
             // see the preview. When no notes folder is configured yet, the main window is
             // always shown so new users can complete onboarding via the FolderPicker.
-            // Mobile has a single always-visible window and no CLI args, so this is desktop-only.
             #[cfg(desktop)]
             {
                 let args: Vec<String> = std::env::args().collect();

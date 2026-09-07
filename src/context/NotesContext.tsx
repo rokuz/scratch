@@ -57,8 +57,6 @@ const NotesDataContext = createContext<NotesDataContextValue | null>(null);
 const NotesActionsContext = createContext<NotesActionsContextValue | null>(null);
 
 
-/** Announces a user-initiated note open (including re-opening the current note) so the
- *  phone layout can switch from the list to the editor. */
 function announceNoteOpened(id: string) {
   window.dispatchEvent(new CustomEvent("note-selected", { detail: id }));
 }

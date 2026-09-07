@@ -26,8 +26,6 @@ dist-ssr
 # Rust / Tauri
 src-tauri/target/
 src-tauri/gen/schemas/
-# src-tauri/gen/android is the Android Studio project and is committed; its build
-# outputs are ignored by src-tauri/gen/android/.gitignore
 
 # Build secrets
 .env.build

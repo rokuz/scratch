@@ -11,10 +11,6 @@ export const isMac =
 export const isWindows =
   typeof navigator !== "undefined" && /Windows/.test(navigator.userAgent);
 
-/**
- * Android/iOS builds have no folder picker, git, AI CLIs, or updater.
- * Those features are compiled out of the backend and hidden in the UI.
- */
 export const isMobile =
   typeof navigator !== "undefined" &&
   /Android|iPhone|iPad|iPod/.test(navigator.userAgent);

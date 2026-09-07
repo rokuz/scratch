@@ -13,7 +13,6 @@ val tauriProperties = Properties().apply {
     }
 }
 
-// Release signing: point key.properties (git-ignored) at a keystore to get installable release builds
 val keyProperties = Properties().apply {
     val propFile = rootProject.file("key.properties")
     if (propFile.exists()) {

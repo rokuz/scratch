@@ -9,7 +9,6 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { SidebarResizeHandle } from "./components/layout/SidebarResizeHandle";
 import { SIDEBAR_DEFAULT_PX } from "./lib/sidebar";
 
-/** Below Tailwind's `sm` breakpoint the sidebar and editor are shown one at a time. */
 const isNarrowViewport = () => window.matchMedia("(max-width: 639px)").matches;
 import { Editor } from "./components/editor/Editor";
 import type { Editor as TiptapEditor } from "@tiptap/react";
@@ -100,9 +99,6 @@ function AppContent() {
     };
   }, [syncNotesFolder, reloadSettings]);
 
-  // Phone-width layout: the sidebar and editor don't fit side by side, so they are shown
-  // one at a time. Opening the editor pushes a history entry so the Android back button
-  // returns to the list; showing the list pops it again.
   const showEditorPane = useCallback(() => {
     setSidebarVisible(false);
     if (!history.state?.editor) history.pushState({ editor: true }, "");
@@ -693,7 +689,7 @@ function App() {
     document.documentElement.classList.add(`platform-${os}`);
   }, []);
 
-  // Check for app updates on startup (folder mode only; mobile updates via the store)
+  // Check for app updates on startup (folder mode only)
   useEffect(() => {
     if (isPreview || isMobile) return;
     const timer = setTimeout(() => showUpdateToast(), 3000);
